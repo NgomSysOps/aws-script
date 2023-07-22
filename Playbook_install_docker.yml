@@ -1,0 +1,54 @@
+---
+- name: Installation de docker sur ubuntu
+  hosts: localhost
+  connection: local
+  task:
+    - name: Updating cache
+      apt:
+        update_cache: yes
+
+    - name: Installating required packages
+      apt:
+       - ca-certificates
+       - curl 
+       - gnupg
+      state: latest
+
+    - name: Add Docker’s official GPG key
+      command: "{{ item }}"
+      with_items :
+        - sudo install -m 0755 -d /etc/apt/keyrings
+        - curl -fsSL https://download.docker.com/linux/ubuntu/gpg
+        - sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg 
+        - sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+    - name: Seting up the repository
+      command: "{{ item }}"
+      with_items:
+        - echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \ "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable"
+        - sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    - name: Updating cache again to add repository
+      apt:
+        update_cache: yes
+
+    - name: Installating Docker engine, Docker compose and Docker CLI plugin
+      command: sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      notify: start-docker
+
+    - name: Adding user to Docker group
+      command: sudo usermod -aG docker $USER
+
+  handlers:
+    - name: Enabling docker
+      service:
+        name: docker
+        enabled: yes
+
+    - name: Starting docker service
+      service:
+        name: docker
+        state: started
+
+    - name: Verifying Installation
+      debug: msg="Docker is well installed in your machin"
